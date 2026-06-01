@@ -1,0 +1,61 @@
+{
+  "train_npz_dir": "",
+  "train_npz_dirs": [
+    "sam2_teacher_npz_iou/refcoco+_train_seed2026_N64_pert0.05-0.15_base_plus_dIoU/"
+  ],
+  "train_tags": [
+    "refcocoplus"
+  ],
+  "val_npz_dir": "",
+  "val_npz_dirs": [
+    "sam2_teacher_npz_iou/refcoco+_testA_seed2026_N64_pert0.05-0.15_base_plus_dIoU/"
+  ],
+  "val_tags": [
+    "refcocoplus_testA"
+  ],
+  "val_ratio": 0.02,
+  "data_root": "",
+  "sam2_ckpt": "../checkpoints/sam2.1_hiera_base_plus.pt",
+  "sam2_cfg": "configs/sam2.1/sam2.1_hiera_b+.yaml",
+  "epochs": 5,
+  "batch_size": 8,
+  "num_workers": 4,
+  "lr": 0.0003,
+  "wd": 0.0001,
+  "seed": 3,
+  "device": "cuda",
+  "k_top": 5,
+  "save_dir": "./ckpt_useful_refcocop_value_mix",
+  "log_every": 50,
+  "mix_strategy": "uniform",
+  "mix_weights": null,
+  "mix_epoch_size": 0,
+  "use_prompt_embed": true,
+  "use_box_prompt": true,
+  "use_base_mask": true,
+  "useful_thresh": 0.0,
+  "w_cls": 1.0,
+  "w_val": 0.2,
+  "w_rank": 0.2,
+  "rank_T": 0.5,
+  "val_transform": "log",
+  "val_eps": 1e-06,
+  "val_clip": 1.0,
+  "lr_scheduler": "cosine_warmup",
+  "lr_min": 1e-06,
+  "warmup_steps": 500,
+  "step_size": 1,
+  "step_gamma": 0.5,
+  "use_ema": true,
+  "ema_decay": 0.999,
+  "ema_eval": true,
+  "head_type": "decoder",
+  "hidden_dim": 512,
+  "dropout": 0.1,
+  "decoder_dim": 256,
+  "decoder_layers": 2,
+  "decoder_nhead": 8,
+  "decoder_ffn_mult": 4,
+  "decoder_mem_downsample": 1,
+  "decoder_use_mem_pos": false
+}
