@@ -2,7 +2,7 @@
 
 This repository contains the research code for **ResAgent: Entropy-based Point Discovery and Visual Reasoning for Referring Expression Segmentation**.
 
-ResAgent follows a coarse-to-fine **discover-and-validate** pipeline for referring expression segmentation (RES). Given an image and a referring expression, it first uses routed coarse box priors, then discovers informative point candidates with EBD, verifies them through marker-grounded VBR, and finally decodes the mask with SAM2.
+ResAgent follows a coarse-to-fine **discover-and-validate** pipeline for referring expression segmentation (RES). Given an image and a referring expression, it first uses routed coarse box priors, then discovers informative point candidates with Entropy-Based Point Discovery (EBD), verifies them through marker-grounded Vision-Based Reasoning (VBR), and finally decodes the mask with SAM2.
 
 ## Overview
 
@@ -153,7 +153,19 @@ python sam2/resagent_full_eval_point_strategies_textual_qwen25_fix1.py \
   --output_root ./outputs/resagent_eval
 ```
 
-The shell scripts are example commands. Some default values reflect intermediate experiments and can be overridden by environment variables. Please use the released routed box jsonl files, learned EBD checkpoint, and SAM2 checkpoint/config corresponding to your target setting.
+The shell scripts are example commands. Some default values reflect intermediate experiments and can be overridden by environment variables. Please adjust model paths, SAM2 checkpoints, and dataset paths according to your local environment.
+
+If no learned EBD checkpoint is available, the evaluation script can also be run with training-free point discovery strategies, such as:
+
+```bash
+--point_strategy random
+```
+
+or
+
+```bash
+--point_strategy spiral
+```
 
 ## Running Textual Coordinate Baselines
 
@@ -176,11 +188,20 @@ Other textual formats can be specified by changing `TEXTUAL_PROMPT_FORMAT`.
 
 ## Learned EBD Proxy
 
-The learned EBD proxy is trained from SAM2 teacher data. The teacher data stores point-wise segmentation gains under positive and negative point prompts.
+The learned EBD proxy is trained from SAM2 teacher data. The teacher data records point-wise segmentation gains under positive and negative point prompts. Specifically, for each candidate point, SAM2 is first run with a box-only prompt as the baseline, and then run again by treating the same point as a positive or negative prompt. The resulting IoU improvements are used as teacher signals for training a lightweight point usefulness/value predictor.
+
+We provide the code for building the teacher data and training the learned EBD proxy. The trained checkpoint is not included in this repository. Users can train the predictor with the provided scripts and place the resulting checkpoint under `ckpt_useful_value_mix/`, or specify its path with `--learned_ckpt_path`.
+
+The directory `ckpt_useful_value_mix/` contains the corresponding training configuration:
+
+```text
+ckpt_useful_value_mix/
+└── config.json
+```
 
 ### Build SAM2 Teacher Data
 
-Random-point teacher data:
+Random-point teacher data can be built with:
 
 ```bash
 python sam2/build_sam2_teacher_dataset_iou.py \
@@ -194,7 +215,9 @@ python sam2/build_sam2_teacher_dataset_iou.py \
   --out_dir ./sam2_teacher_npz_iou
 ```
 
-Spiral/geometric-point teacher data:
+The script produces one `.npz` file per referring instance. Each file stores the perturbed box, sampled candidate points, point membership labels, the box-only IoU, positive/negative prompted IoU, and the corresponding point-wise IoU gains.
+
+We also provide a spiral/geometric candidate version:
 
 ```bash
 python sam2/build_sam2_teacher_dataset_iou_spiral.py \
@@ -210,9 +233,11 @@ python sam2/build_sam2_teacher_dataset_iou_spiral.py \
   --out_dir ./sam2_teacher_npz_iou
 ```
 
-Each `.npz` file stores the perturbed box, candidate points, point membership, box-only IoU, positive/negative prompted IoU, and the corresponding point-wise gain.
+This version was used for exploring geometry-aware candidate construction and can be used as an alternative source of teacher data.
 
 ### Train Learned Point Utility Predictor
+
+After teacher data is prepared, train the learned EBD proxy with:
 
 ```bash
 python sam2/train_point_useful_value_samstyle_imgpathfix_v6_mix.py \
@@ -253,25 +278,37 @@ python sam2/train_point_useful_value_samstyle_imgpathfix_v6_mix.py \
   --mix_strategy uniform
 ```
 
+The trained checkpoint can then be used during evaluation:
+
+```bash
+--point_strategy learned \
+--learned_ckpt_path ckpt_useful_value_mix/best_epoch5.pt \
+--learned_config_json ckpt_useful_value_mix/config.json
+```
+
+The provided command is a practical example. Users may further tune the training schedule, teacher data, point sampling strategy, or SAM2 variant for their own setting.
+
 ## Optional SAM2 Adaptation
 
-For the full model, SAM2 can be lightly adapted on COCO train2014. We first convert COCO instance annotations into the SA-1B-style annotation format used by the SAM2 training pipeline.
+For the full model, SAM2 can be lightly adapted on COCO train2014. This adaptation only affects the promptable segmentation decoder. The MLLM backbone remains frozen.
 
-The conversion notebook is:
+We first convert COCO instance annotations into the SA-1B-style annotation format used by the SAM2 training pipeline. The conversion notebook is:
 
 ```text
 transfercoco2SA1Bformat.ipynb
 ```
 
-It converts COCO instance annotations into per-image JSON files compatible with SAM2-style raw dataset loading. After conversion, SAM2 can be fine-tuned using the official SAM2 training recipe and the corresponding config.
+It converts COCO instance annotations into per-image JSON files compatible with SAM2-style raw dataset loading. After conversion, SAM2 can be fine-tuned using the official SAM2 training recipe and the corresponding SAM2 config.
 
-The adapted SAM2 checkpoint is used for the full model, while the official SAM2 checkpoint can be used for the no-adaptation variant.
+The adapted SAM2 checkpoint is not included in this repository. Users may either use the official SAM2 checkpoint for the no-adaptation setting or fine-tune SAM2 with the converted COCO data for the full setting.
 
 ## Important Notes
 
 * The released shell scripts are intended as runnable examples.
 * Some paths and default hyperparameters may need to be adjusted according to your local environment.
-* The paper results are obtained with the released routed box priors, learned EBD checkpoint, and the corresponding SAM2 checkpoint/config.
+* Routed coarse box priors are provided under `router_eval_medoid/`.
+* The learned EBD checkpoint is not included. Please train it using the provided teacher-building and training scripts.
+* The optional adapted SAM2 checkpoint is not included. Users may use the official SAM2 checkpoint or fine-tune SAM2 following the provided COCO-to-SA1B conversion workflow.
 * The MLLM backbone is kept frozen in all ResAgent variants.
 * The learned EBD proxy and optional SAM2 adaptation do not fine-tune the MLLM.
 
