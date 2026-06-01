@@ -4,6 +4,8 @@ This repository contains the research code for **ResAgent: Entropy-based Point D
 
 ResAgent follows a coarse-to-fine **discover-and-validate** pipeline for referring expression segmentation (RES). Given an image and a referring expression, it first uses routed coarse box priors, then discovers informative point candidates with Entropy-Based Point Discovery (EBD), verifies them through marker-grounded Vision-Based Reasoning (VBR), and finally decodes the mask with SAM2.
 
+This code depends on PyTorch, transformers, SAM2, numpy, Pillow, tqdm, and the RefCOCO REFER API. Please install SAM2 following the official instructions and place this repository under a SAM2-compatible environment.
+
 ## Overview
 
 The main pipeline contains four stages:
